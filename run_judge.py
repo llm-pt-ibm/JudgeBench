@@ -63,8 +63,8 @@ def main(args: argparse.Namespace) -> None:
 
     dataset_name = os.path.basename(args.pairs).replace(".jsonl", "")
     file_path = f"{dataset_name},judge_name={args.judge_name},judge_model={args.judge_model.replace('/', '_')}.jsonl"
-    os.makedirs("./outputs", exist_ok=True)
-    file_path = os.path.join("./outputs", file_path)
+    os.makedirs("./outputs-judgebench", exist_ok=True)
+    file_path = os.path.join("./outputs-judgebench", file_path)
     
     if os.path.exists(file_path):
         print(f"File {file_path} already exists. Skipping judging pairs...")
@@ -91,9 +91,10 @@ def main(args: argparse.Namespace) -> None:
     # 7. compute final metrics
     print("Computing final metrics ...") 
     pairs = file_operations.read_jsonl(file_path)  # need to load all the history, not just the generated one.
-    for source in ["mmlu-pro", "livebench-reasoning", "livebench-math", "livecodebench", ""]:
-        score = metrics.compute_final_metrics(pairs, not args.single_game, include_fn = lambda x: x["source"].startswith(source))
-        print(f"{source if source else 'Overall'}: {score:.2f}%.")
+    for area in ["Knowledge", "reasoning", "mathematics", "code", ""]:
+        score = metrics.compute_final_metrics(pairs, not args.single_game, include_fn=lambda x, a=area: x.get("area", "").startswith(a))
+        if score is not None:
+            print(f"{area if area else 'Overall'}: {score:.2f}%.")
 
 
 if __name__ == "__main__":

@@ -79,16 +79,16 @@ class Vanilla(Judge):
 
     def extract_pairwise_result(self, raw_output):
         print("raw:", raw_output)
-        if raw_output == "Output (a)":
+        if raw_output in ("Output (a)", "Resultado (a)"):
             return "A>B"
-        elif raw_output == "Output (b)":
+        elif raw_output in ("Output (b)", "Resultado (b)"):
             return "B>A"
         raise Exception("Cannot parse output:", raw_output)
 
     async def get_judgment(self, question: str, answer_A: str, answer_B: str) -> Dict[str, Any]:
         prompt = prompts.render_template(
             "vanilla_prompt", question=question, answer_a=answer_A, answer_b=answer_B)
-        print("prompt:", prompt)
+        #print("prompt:", prompt)
         output = await self.api.chat(
             messages=[{"role": "user", "content": prompt}],
             temperature=0.0,

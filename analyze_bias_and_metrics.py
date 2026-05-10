@@ -31,7 +31,6 @@ def analyze_results(pairs: List[Dict[Any, Any]], reverse_order: bool = True):
         print("No pairs found to analyze.")
         return
 
-    # A lógica aqui é focada no modo de avaliação dupla (reverse_order=True)
     if not reverse_order:
         print("This script is designed for dual-judgment (reverse_order=True) files.")
         return
@@ -55,19 +54,23 @@ def analyze_results(pairs: List[Dict[Any, Any]], reverse_order: bool = True):
 
         if decision1 is None or decision2 is None:
             n_nulls += 1
-        else:
-            if decision1 != decision2:
-                n_inconsistent += 1
-            
-            if raw_decision1 == "A>B" and raw_decision2 == "A>B":
-                n_first_choice_bias += 1
-            
-            if decision1 in ["A>B", "B>A"]:
-                y_true.append(label)
-                y_pred.append(decision1)
-            if decision2 in ["A>B", "B>A"]:
-                y_true.append(label)
-                y_pred.append(decision2)
+        
+        if decision1 is not None and decision2 is not None and decision1 != decision2:
+            n_inconsistent += 1
+        
+        if raw_decision1 == "A>B" and raw_decision2 == "A>B":
+            n_first_choice_bias += 1
+        
+        # --- MUDANÇA IMPORTANTE AQUI ---
+        # Adicionamos TODOS os julgamentos (incluindo empates e nulos)
+        # às listas para um cálculo de métricas completo.
+        # Representamos 'None' com a string "INVALID" para o scikit-learn.
+        y_true.extend([label, label])
+        y_pred.extend([
+            decision1 if decision1 is not None else "INVALID",
+            decision2 if decision2 is not None else "INVALID"
+        ])
+        # --- FIM DA MUDANÇA ---
 
         counter = 0
         for decision in [decision1, decision2]:
@@ -81,7 +84,7 @@ def analyze_results(pairs: List[Dict[Any, Any]], reverse_order: bool = True):
     
     # --- IMPRESSÃO DO RELATÓRIO ---
     print("\n--- Overall Performance Summary ---")
-    print(f"  - Pairs with valid model response: {pairs_with_valid_response} of {total_pairs_in_category}")
+    print(f"  - Pairs with a valid decision: {pairs_with_valid_response} of {total_pairs_in_category}")
     print(f"  - General inconsistency (A!=B): {n_inconsistent} of {pairs_with_valid_response} ({ (n_inconsistent/pairs_with_valid_response*100) if pairs_with_valid_response > 0 else 0 :.1f}%)")
     print(f"  - Strong First-Position Bias: {n_first_choice_bias} of {pairs_with_valid_response} ({ (n_first_choice_bias/pairs_with_valid_response*100) if pairs_with_valid_response > 0 else 0 :.1f}%)")
     print(f"  - Final Accuracy Score: {100 * n_correct / total_pairs_in_category if total_pairs_in_category > 0 else 0:.2f}%")
@@ -89,6 +92,8 @@ def analyze_results(pairs: List[Dict[Any, Any]], reverse_order: bool = True):
     
     print("\n" + "-"*15 + " Classification Metrics (per judgment) " + "-"*15)
     if y_true:
+        # O relatório agora considera 'INVALID' como uma previsão possível,
+        # impactando o recall das classes A>B e B>A.
         print(classification_report(y_true, y_pred, labels=["A>B", "B>A"], zero_division=0))
     else:
         print("  No valid judgments to generate a classification report.")
@@ -102,10 +107,10 @@ def read_jsonl(file_path: str) -> List[Dict[str, Any]]:
             for line in f:
                 data.append(json.loads(line))
     except FileNotFoundError:
-        print(f"Erro: O arquivo '{file_path}' não foi encontrado.")
+        print(f"Error: The file '{file_path}' was not found.")
         exit()
     except json.JSONDecodeError as e:
-        print(f"Erro ao decodificar JSON no arquivo '{file_path}': {e}")
+        print(f"Error decoding JSON in file '{file_path}': {e}")
         exit()
     return data
 
@@ -118,7 +123,7 @@ if __name__ == "__main__":
     # Lê e processa o arquivo de resultados
     all_pairs = read_jsonl(args.jsonl_file)
 
-    # Lógica de desduplicação para garantir que apenas o último julgamento de cada par seja usado
+    # Lógica de desduplicação
     if all_pairs:
         print(f"De-duplicating results... Found {len(all_pairs)} total entries.")
         unique_pairs_dict = {pair['pair_id']: pair for pair in all_pairs}

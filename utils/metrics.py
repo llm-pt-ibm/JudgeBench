@@ -17,6 +17,9 @@ def compute_final_metrics(pairs: List[Dict[str, Any]], reverse_order: bool, incl
 
     n_pairs = len(pairs)
 
+    if n_pairs == 0:
+        return None
+
     if not reverse_order:
         n_correct = sum(
             pair["judgments"][0]["decision"] == pair["label"]
